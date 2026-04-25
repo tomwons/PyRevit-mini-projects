@@ -10,7 +10,6 @@
 5. toggle comments and change color to yellow
 <img width="1280" height="720" alt="5" src="https://github.com/user-attachments/assets/00989e3b-0853-46f4-b9ec-57efcb946bc4" />
 6. create schedule from selected objects not much to show.
- 
-8. Generate Pipeline with elbows crosses etc from seleceted Lines using Dynamo player
+7. Generate Pipeline with elbows crosses etc from seleceted Lines using Dynamo player
 <img width="1280" height="732" alt="7" src="https://github.com/user-attachments/assets/ded0f799-5f3b-4116-ba0d-d2e115c2a2db" />
 
