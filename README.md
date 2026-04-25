@@ -5,4 +5,6 @@
 <img width="1280" height="720" alt="2" src="https://github.com/user-attachments/assets/ab4dc44f-60a7-4487-aa6a-3a2a06b29233" />
 3. Clash detection with bypassing.
 <img width="1280" height="720" alt="3" src="https://github.com/user-attachments/assets/dda9f46c-f379-4049-9756-2eccb2941d1d" />
+4. The script generates a complete pipe layout based on two selected points, automatically routing around walls and obstacles
+<img width="1280" height="720" alt="4" src="https://github.com/user-attachments/assets/d9861b87-5783-43eb-a097-ea8036b24868" />
 
