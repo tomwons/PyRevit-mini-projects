@@ -12,4 +12,6 @@
 6. create schedule from selected objects not much to show.<br>
 7. Generate Pipeline with elbows crosses etc from seleceted Lines using Dynamo player
 <img width="1280" height="732" alt="7" src="https://github.com/user-attachments/assets/ded0f799-5f3b-4116-ba0d-d2e115c2a2db" />
+8. Generate wall openings for pipes and ducts.
+<img width="1280" height="732" alt="8" src="https://github.com/user-attachments/assets/dbaf11a3-99ea-4ac9-a786-4e718f13dd79" />
 
