@@ -1,0 +1,273 @@
+{
+  "Uuid": "0a274a41-4e98-428e-81dd-48b2414d1bcc",
+  "IsCustomNode": false,
+  "Description": "",
+  "Name": "eksport_all_schedules_tocsv",
+  "ElementResolver": {
+    "ResolutionMap": {}
+  },
+  "Inputs": [
+    {
+      "Id": "0c4545d5bb5d4f7496568012a0f78d3b",
+      "Name": "Directory Path",
+      "Type": "string",
+      "Type2": "string",
+      "Value": "C:\\Users\\tomas\\Desktop\\schedulle",
+      "Description": "Umożliwia wybranie katalogu w systemie i zwraca jego ścieżkę"
+    }
+  ],
+  "Outputs": [],
+  "Nodes": [
+    {
+      "ConcreteType": "DSRevitNodesUI.ElementsOfType, DSRevitNodesUI",
+      "Id": "8abedc147bde401ea3308186d1abdd38",
+      "NodeType": "ExtensionNode",
+      "Inputs": [
+        {
+          "Id": "729020eaa93b4ef1a290049935988a53",
+          "Name": "element class",
+          "Description": "Klasa elementu.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "c67d97aa62f34c59a54ccebad0b6e6d2",
+          "Name": "elements",
+          "Description": "Wszystkie elementy w aktywnym dokumencie danej klasy.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Wszystkie elementy w aktywnym dokumencie danej klasy."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nimport os\r\n\r\n# Import Revit API\r\nclr.AddReference('RevitAPI')\r\nfrom Autodesk.Revit.DB import *\r\n\r\n# Pobranie danych z wejść Dynamo\r\ninput_schedules = IN[0] if isinstance(IN[0], list) else [IN[0]]\r\nexport_folder = str(IN[1])\r\n\r\n# Sprawdzenie czy folder istnieje\r\nif not os.path.exists(export_folder):\r\n    os.makedirs(export_folder)\r\n\r\nresults = []\r\n\r\n# Konfiguracja eksportu\r\nopt = ViewScheduleExportOptions()\r\nopt.FieldDelimiter = \",\"\r\nopt.ExportHeadersFooter = False\r\nopt.ColumnHeaders = ExportColumnHeaders.OneRow\r\n\r\nfor item in input_schedules:\r\n    # Odpakowanie elementu z Dynamo do Revit API\r\n    if hasattr(item, \"InternalElement\"):\r\n        sched = item.InternalElement\r\n    else:\r\n        sched = item\r\n\r\n    # Sprawdzenie czy to na pewno ViewSchedule (pomijamy filtr nazwy)\r\n    if isinstance(sched, ViewSchedule):\r\n        try:\r\n            # Czyszczenie nazwy pliku ze znaków zakazanych\r\n            clean_name = \"\".join([c for c in sched.Name if c.isalnum() or c in (' ', '_')]).strip()\r\n            filename = clean_name + \".csv\"\r\n            full_path = os.path.join(export_folder, filename)\r\n            \r\n            # 1. Eksport standardowy\r\n            sched.Export(export_folder, filename, opt)\r\n            \r\n            # 2. MECHANICZNE USUNIĘCIE PIERWSZEGO WIERSZA (Tytułu)\r\n            with open(full_path, 'r') as f:\r\n                lines = f.readlines()\r\n            \r\n            # Nadpisujemy plik bez pierwszej linii\r\n            if len(lines) > 1:\r\n                with open(full_path, 'w') as f:\r\n                    f.writelines(lines[1:])\r\n            \r\n            results.append(\"OK (Wyczyszczono): \" + filename)\r\n        except Exception as e:\r\n            results.append(\"Błąd w {}: {}\".format(sched.Name, str(e)))\r\n    else:\r\n        results.append(\"Pominięto: Element nie jest zestawieniem.\")\r\n\r\nOUT = results",
+      "Engine": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "b17366edae3b4cd2acbed8796a28a286",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "66b346380fb048bcae4ca159f6570fe9",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "390b719c0b11420faccdb94e13e5b751",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "7d852e1f50c94403939fae0bac1e3062",
+          "Name": "OUT",
+          "Description": "Wynik skryptu w języku Python",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Uruchamia osadzony skrypt języka Python."
+    },
+    {
+      "ConcreteType": "DSRevitNodesUI.ElementTypes, DSRevitNodesUI",
+      "SelectedIndex": 377,
+      "SelectedString": "ViewSchedule",
+      "Id": "af1adbb4410a49cd83fd3b5de93ead72",
+      "NodeType": "ExtensionNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "3a6d1e4cef8349d69730fee757bb0bca",
+          "Name": "Classes",
+          "Description": "Wybrany Classes",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Wszystkie podklasy elementu."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.Directory, CoreNodeModels",
+      "Id": "0c4545d5bb5d4f7496568012a0f78d3b",
+      "NodeType": "ExtensionNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "1277612b7e8741d8924e16ecd17d2876",
+          "Name": "",
+          "Description": "Ścieżka katalogu",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Umożliwia wybranie katalogu w systemie i zwraca jego ścieżkę",
+      "HintPath": "C:\\Users\\tomas\\Desktop\\schedulle",
+      "InputValue": "C:\\Users\\tomas\\Desktop\\schedulle"
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "c67d97aa62f34c59a54ccebad0b6e6d2",
+      "End": "66b346380fb048bcae4ca159f6570fe9",
+      "Id": "b11283153e6241e6b51eafcae32c2c4d",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "3a6d1e4cef8349d69730fee757bb0bca",
+      "End": "729020eaa93b4ef1a290049935988a53",
+      "Id": "0d11d517cdf54e41b0b2f89b0e7b30aa",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "1277612b7e8741d8924e16ecd17d2876",
+      "End": "390b719c0b11420faccdb94e13e5b751",
+      "Id": "0d0839d1a4ce42edbe26c255cfbc81e4",
+      "IsHidden": "False"
+    }
+  ],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [],
+  "EnableLegacyPolyCurveBehavior": true,
+  "Thumbnail": "",
+  "GraphDocumentationURL": null,
+  "ExtensionWorkspaceData": [
+    {
+      "ExtensionGuid": "28992e1d-abb9-417f-8b1b-05e053bee670",
+      "Name": "Właściwości",
+      "Version": "3.6",
+      "Data": {}
+    },
+    {
+      "ExtensionGuid": "DFBD9CC0-DB40-457A-939E-8C8555555A9D",
+      "Name": "Generative Design",
+      "Version": "9.1",
+      "Data": {}
+    }
+  ],
+  "Author": "",
+  "Linting": {
+    "activeLinter": "Brak",
+    "activeLinterId": "7b75fb44-43fd-4631-a878-29f4d5d8399a",
+    "warningCount": 0,
+    "errorCount": 0
+  },
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 1.0,
+      "HasRunWithoutCrash": true,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "3.6.1.9895",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    },
+    "Camera": {
+      "Name": "_Podgląd tła",
+      "EyeX": -17.0,
+      "EyeY": 24.0,
+      "EyeZ": 50.0,
+      "LookX": 12.0,
+      "LookY": -13.0,
+      "LookZ": -58.0,
+      "UpX": 0.0,
+      "UpY": 1.0,
+      "UpZ": 0.0
+    },
+    "ConnectorPins": [],
+    "NodeViews": [
+      {
+        "Id": "8abedc147bde401ea3308186d1abdd38",
+        "Name": "All Elements of Class",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 117.93001662119366,
+        "Y": 5.033843785072747
+      },
+      {
+        "Id": "b17366edae3b4cd2acbed8796a28a286",
+        "Name": "Python Script",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 543.2703957058536,
+        "Y": 88.7957769027517
+      },
+      {
+        "Id": "af1adbb4410a49cd83fd3b5de93ead72",
+        "Name": "Element Classes",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": -255.18137564679296,
+        "Y": -60.950043282649744
+      },
+      {
+        "Id": "0c4545d5bb5d4f7496568012a0f78d3b",
+        "Name": "Directory Path",
+        "IsSetAsInput": true,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": -272.8663377416227,
+        "Y": 292.5600291880944
+      }
+    ],
+    "Annotations": [
+      {
+        "Id": "66074badb0624fcd92d5b668cdbacc14",
+        "Title": "wybiera ścieżke",
+        "DescriptionText": "Opis <Kliknij dwukrotnie tutaj, aby edytować opis grupy>",
+        "IsExpanded": true,
+        "WidthAdjustment": 0.0,
+        "HeightAdjustment": 0.0,
+        "Nodes": [
+          "0c4545d5bb5d4f7496568012a0f78d3b"
+        ],
+        "HasNestedGroups": false,
+        "Left": -282.8663377416227,
+        "Top": 210.5600291880944,
+        "Width": 310.0,
+        "Height": 220.0,
+        "FontSize": 36.0,
+        "GroupStyleId": "00000000-0000-0000-0000-000000000000",
+        "InitialTop": 292.5600291880944,
+        "InitialHeight": 168.0,
+        "TextblockHeight": 72.0,
+        "Background": "#FFC1D676"
+      }
+    ],
+    "X": 471.0296155155627,
+    "Y": 181.16797825617536,
+    "Zoom": 0.9544849456335915
+  }
+}
