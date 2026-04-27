@@ -10,10 +10,12 @@
 5. toggle comments and change color to yellow
 <img width="1280" height="720" alt="5" src="https://github.com/user-attachments/assets/00989e3b-0853-46f4-b9ec-57efcb946bc4" />
 6. create schedule from selected objects not much to show.<br>
-8. Generate wall openings for pipes and ducts.
+7. Generate wall openings for pipes and ducts.
 <img width="1280" height="732" alt="8" src="https://github.com/user-attachments/assets/dbaf11a3-99ea-4ac9-a786-4e718f13dd79" />
+8. Create bypass for ducts.
+<img width="1280" height="720" alt="9" src="https://github.com/user-attachments/assets/c0ff9a0d-bd8f-4fbd-971a-329326348e51" />
 Dynamo player:
-7. Generate Pipeline with elbows crosses etc from seleceted Lines using Dynamo player
+2. Generate Pipeline with elbows crosses etc from seleceted Lines using Dynamo player
 <img width="1280" height="732" alt="7" src="https://github.com/user-attachments/assets/ded0f799-5f3b-4116-ba0d-d2e115c2a2db" />
-8. Exports all schedules without the headline.
+1. Exports all schedules without the headline.
 <img width="1280" height="720" alt="9" src="https://github.com/user-attachments/assets/d344f2ee-6ff2-43db-8434-37e8bb38cf06" />
