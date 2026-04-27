@@ -2,7 +2,9 @@
 from Autodesk.Revit.DB import *
 from Autodesk.Revit.UI import *
 from pyrevit import script
+import datetime
 
+# Inicjalizacja wyjścia pyRevit
 output = script.get_output()
 logger = script.get_logger()
 
@@ -10,72 +12,100 @@ doc = __revit__.ActiveUIDocument.Document
 uidoc = __revit__.ActiveUIDocument
 selection_ids = uidoc.Selection.GetElementIds()
 
-output.print_md("# 🚀 Generator Zestawień MEP v3.0 (Tylko Zaznaczone)")
+output.print_md("# 🚀 Generator Zestawień MEP v3.1 (Pancerny)")
 
 if not selection_ids:
-    logger.warning("BŁĄD: Nic nie zaznaczyłeś! Musisz zaznaczyć elementy, które mają trafić do tabeli.")
+    logger.warning(
+        "BŁĄD: Nic nie zaznaczyłeś! Zaznacz elementy w modelu przed uruchomieniem."
+    )
 else:
-    # 1. Przygotowanie unikalnego klucza dla zaznaczonych elementów
-    # Nadajemy zaznaczonym elementom tymczasowy komentarz, aby móc je przefiltrować w zestawieniu
+    # 1. Przygotowanie unikalnego klucza dla filtra
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     unique_filter_val = "Selection_" + timestamp
 
-    # 2. Grupowanie kategorii i oznaczanie elementów
+    # 2. Grupowanie kategorii i oznaczanie elementów w jednej transakcji
     elements_by_category = {}
-    
+
     t_mark = Transaction(doc, "Oznaczanie elementów do zestawienia")
     t_mark.Start()
     for eid in selection_ids:
         el = doc.GetElement(eid)
         if el and el.Category:
-            # Nadajemy unikalną wartość w parametrze "Komentarze", aby filtr zadziałał
+            # Nadajemy unikalną wartość w parametrze "Komentarze" (Comments)
             p = el.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
             if p:
                 p.Set(unique_filter_val)
-            
+
             cat_key = el.Category.Id.ToString()
             if cat_key not in elements_by_category:
                 elements_by_category[cat_key] = el.Category
     t_mark.Commit()
 
-    # 3. Lista parametrów
+    # 3. Definicja parametrów docelowych (BuiltInParameter i nazwa)
     targets = [
         (BuiltInParameter.ELEM_FAMILY_PARAM, "Rodzina"),
         (BuiltInParameter.ELEM_FAMILY_AND_TYPE_PARAM, "Rodzina i typ"),
-        (None, "Liczba"), 
+        (None, "Liczba"),  # Pole specjalne 'Count'
         (BuiltInParameter.CURVE_ELEM_LENGTH, "Długość"),
         (BuiltInParameter.RBS_PIPE_DIAMETER_PARAM, "Średnica"),
         (BuiltInParameter.RBS_CURVE_WIDTH_PARAM, "Szerokość"),
         (BuiltInParameter.RBS_CURVE_HEIGHT_PARAM, "Wysokość"),
         (BuiltInParameter.RBS_CALCULATED_SIZE, "Wielkość"),
-        (BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, "Filtr_ID") # Musi być do filtra
+        (BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, "Filtr_ID"),
     ]
 
     t = Transaction(doc, "Generowanie Zestawień")
     t.Start()
 
     try:
-        # Usuwanie starych zestawień
-        existing_schedules = FilteredElementCollector(doc).OfClass(ViewSchedule).ToElements()
+        # Usuwanie starych zestawień automatycznych (czyszczenie widoków)
+        existing_schedules = (
+            FilteredElementCollector(doc).OfClass(ViewSchedule).ToElements()
+        )
         for old_sched in existing_schedules:
             if "Zestawienie_Automatyczne_" in old_sched.Name:
-                try: doc.Delete(old_sched.Id)
-                except: pass
+                try:
+                    doc.Delete(old_sched.Id)
+                except:
+                    pass
 
         for cat_key, category in elements_by_category.items():
-            target_name = "Zestawienie_Automatyczne_{}".format(category.Name.replace(" ", "_"))
-            
-            # Tworzenie widoku
+            # --- WALIDACJA KATEGORII ---
+            if not ViewSchedule.IsValidCategoryForSchedule(category.Id):
+                output.print_md(
+                    "⚠️ Pominięto kategorię: **{}** (Revit nie pozwala na jej zestawienie)".format(
+                        category.Name
+                    )
+                )
+                continue
+
+            target_name = "Zestawienie_Automatyczne_{}".format(
+                category.Name.replace(" ", "_")
+            )
+
+            # Próba stworzenia zestawienia (DataSchedule lub zwykłe)
+            new_schedule = None
             try:
                 new_schedule = ViewSchedule.CreateDataSchedule(doc, category.Id)
             except:
-                new_schedule = ViewSchedule.CreateSchedule(doc, category.Id)
-            
+                try:
+                    new_schedule = ViewSchedule.CreateSchedule(doc, category.Id)
+                except Exception as e:
+                    output.print_md(
+                        "❌ Błąd krytyczny dla kategorii **{}**: {}".format(
+                            category.Name, str(e)
+                        )
+                    )
+                    continue
+
+            if not new_schedule:
+                continue
+
             new_schedule.Name = target_name
             definition = new_schedule.Definition
             definition.ShowGrandTotal = True
 
-            # Dodawanie pól
+            # Dodawanie pól do zestawienia
             schedulable_fields = definition.GetSchedulableFields()
             filter_field = None
 
@@ -87,34 +117,40 @@ else:
                         if s_field.ParameterId == p_id:
                             found_field = definition.AddField(s_field)
                             if b_param == BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS:
-                                filter_field = found_field # Zapamiętujemy pole do filtra
+                                filter_field = found_field
                             break
                 else:
+                    # Obsługa pola "Liczba" (Count)
                     for s_field in schedulable_fields:
                         if s_field.FieldType == ScheduleFieldType.Count:
                             found_field = definition.AddField(s_field)
                             break
 
+                # Sumowanie wartości dla Długości i Liczby
                 if found_field:
                     if b_param == BuiltInParameter.CURVE_ELEM_LENGTH or b_param is None:
-                        try: found_field.HasTotals = True
-                        except: pass
+                        try:
+                            found_field.HasTotals = True
+                        except:
+                            pass
 
-            # --- KLUCZOWY FILTR: Tylko zaznaczone elementy ---
+            # --- APLIKACJA FILTRA (TYLKO ZAZNACZONE) ---
             if filter_field:
-                # Tworzymy filtr: Komentarze RÓWNA SIĘ unique_filter_val
-                filt = ScheduleFilter(filter_field.FieldId, ScheduleFilterType.Equal, unique_filter_val)
+                filt = ScheduleFilter(
+                    filter_field.FieldId, ScheduleFilterType.Equal, unique_filter_val
+                )
                 definition.AddFilter(filt)
-                # Ukrywamy kolumnę filtra, żeby nie szpeciła zestawienia
-                filter_field.IsHidden = True
+                filter_field.IsHidden = True  # Ukrywamy techniczny parametr filtra
 
-            output.print_md(" Stworzono zestawienie dla: **{}** (Tylko zaznaczone)".format(category.Name))
-        
+            output.print_md("✅ Stworzono: **{}**".format(category.Name))
+
         t.Commit()
         output.print_md("---")
-        output.print_md("###  GOTOWE! Zestawienia zawierają tylko wybrane elementy.")
+        output.print_md(
+            "### 🏁 Sukces! Sprawdź przeglądarkę projektów w sekcji Zestawienia."
+        )
 
     except Exception as e:
         if t.GetStatus() == TransactionStatus.Started:
             t.RollBack()
-        logger.error("BŁĄD: {}".format(str(e)))
+        logger.error("BŁĄD OGÓLNY: {}".format(str(e)))
